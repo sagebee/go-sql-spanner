@@ -28,8 +28,8 @@ var (
 )
 
 type Connector struct {
-	ctx         context.Context
-	client      *spanner.Client
+	ctx    context.Context
+	client *spanner.Client
 }
 
 func NewConnector() (*Connector, error) {
@@ -42,8 +42,8 @@ func NewConnector() (*Connector, error) {
 	}
 
 	conn := &Connector{
-		ctx:         ctx,
-		client:      dataClient,
+		ctx:    ctx,
+		client: dataClient,
 	}
 	return conn, nil
 }
@@ -132,7 +132,6 @@ func TestQueryContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 
 	type testQueryContextRow struct {
 		A, B, C string
@@ -260,9 +259,9 @@ func TestExecContextDdl(t *testing.T) {
 	defer db.Close()
 
 	tests := []struct {
-		name, drop      string
-		input     string
-		wantError bool
+		name, drop string
+		input      string
+		wantError  bool
 	}{
 		{
 			name: "create table ok",
@@ -323,7 +322,6 @@ func TestExecContextDdl(t *testing.T) {
 		},
 		{
 			name: "create table integer name",
-			drop: "DROP TABLE 42",
 			input: `CREATE TABLE 42 (
 				A   INT64,
 				B  STRING(1024),
@@ -345,9 +343,9 @@ func TestExecContextDdl(t *testing.T) {
 
 	// Remove any stray tables.
 	for _, tc := range tests {
-		if ! tc.wantError {
+		if !tc.wantError {
 			_, err = db.ExecContext(ctx, tc.drop)
-			if (err != nil) {
+			if err != nil {
 				t.Error(err)
 			}
 		}
