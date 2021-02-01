@@ -248,3 +248,109 @@ func TestQueryContext(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestExecContextDdl(t *testing.T) {
+
+	// Open db.
+	ctx := context.Background()
+	db, err := sql.Open("spanner", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	tests := []struct {
+		name, drop      string
+		input     string
+		wantError bool
+	}{
+		{
+			name: "create table ok",
+			drop: "DROP TABLE TestTable",
+			input: `CREATE TABLE TestTable (
+				A   STRING(1024),
+				B  STRING(1024),
+			)	 PRIMARY KEY (A)`,
+		},
+		{
+			name: "create table name duplicate",
+			input: `CREATE TABLE TestTable (
+				A   STRING(1024),
+				B  STRING(1024),
+			)	 PRIMARY KEY (A)`,
+			wantError: true,
+		},
+		{
+			name: "create table syntax error",
+			input: `CREATE CREATE TABLE SyntaxError (
+				A   STRING(1024),
+				B  STRING(1024),
+				C   STRING(1024)
+			)	 PRIMARY KEY (A)`,
+			wantError: true,
+		},
+		{
+			name: "create table no primary key",
+			input: `CREATE TABLE NoPrimaryKey (
+				A   STRING(1024),
+				B  STRING(1024),
+			)`,
+			wantError: true,
+		},
+		{
+			name: "create table float primary key",
+			drop: "DROP TABLE FloatPrimaryKey",
+			input: `CREATE TABLE FloatPrimaryKey (
+				A   FLOAT64,
+				B  STRING(1024),
+			)	PRIMARY KEY (A)`,
+		},
+		{
+			name: "create table bool primary key",
+			drop: "DROP TABLE BoolPrimaryKey",
+			input: `CREATE TABLE BoolPrimaryKey (
+				A   BOOL,
+				B  STRING(1024),
+			)	PRIMARY KEY (A)`,
+		},
+		{
+			name: "create table lowercase ddl",
+			drop: "DROP TABLE LowerDdl",
+			input: `create table LowerDdl (
+				A   INT64,
+				B  STRING(1024),
+			)	PRIMARY KEY (A)`,
+		},
+		{
+			name: "create table integer name",
+			drop: "DROP TABLE 42",
+			input: `CREATE TABLE 42 (
+				A   INT64,
+				B  STRING(1024),
+			)	PRIMARY KEY (A)`,
+			wantError: true,
+		},
+	}
+
+	// Run tests.
+	for _, tc := range tests {
+		_, err = db.ExecContext(ctx, tc.input)
+		if (err != nil) && (!tc.wantError) {
+			t.Errorf("%s: unexpected query error: %v", tc.name, err)
+		}
+		if (err == nil) && (tc.wantError) {
+			t.Errorf("%s: expected query error but error was %v", tc.name, err)
+		}
+	}
+
+	// Remove any stray tables.
+	for _, tc := range tests {
+		if ! tc.wantError {
+			_, err = db.ExecContext(ctx, tc.drop)
+			if (err != nil) {
+				t.Error(err)
+			}
+		}
+	}
+
+}
