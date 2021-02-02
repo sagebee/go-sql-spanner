@@ -21,6 +21,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"fmt"
 )
 
 var (
@@ -350,5 +352,52 @@ func TestExecContextDdl(t *testing.T) {
 			}
 		}
 	}
+
+}
+
+
+func TestExecContextDml(t *testing.T) {
+
+	// Open db.
+	ctx := context.Background()
+	db, err := sql.Open("spanner", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	// Set up test table.
+	conn, err := NewConnector()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	_, err = db.ExecContext(ctx,
+		`CREATE TABLE TestDml (
+			A   STRING(1024),
+			B  STRING(1024),
+		)	 PRIMARY KEY (A)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+
+	// Insert.
+	num, errr := db.ExecContext(ctx, `INSERT INTO TestDml (A, B) 
+	VALUES ("a1", "b1"),("a12, "b2") `)
+	if errr != nil {
+		t.Fatal(err)
+	}
+
+	
+
+	fmt.Printf("\n\nNim: %+v\n", num)
+	fmt.Println("XXXXXXXXXXXXXXXXXXX")
+	fmt.Println(num.RowsAffected())
+
+	t.Fatal(num)
+
+
 
 }
