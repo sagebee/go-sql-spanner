@@ -21,8 +21,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
-	"fmt"
+	//"fmt"
 )
 
 var (
@@ -260,6 +259,7 @@ func TestExecContextDdl(t *testing.T) {
 	}
 	defer db.Close()
 
+	// Run tests.
 	tests := []struct {
 		name, drop string
 		input      string
@@ -267,7 +267,6 @@ func TestExecContextDdl(t *testing.T) {
 	}{
 		{
 			name: "create table ok",
-			drop: "DROP TABLE TestTable",
 			input: `CREATE TABLE TestTable (
 				A   STRING(1024),
 				B  STRING(1024),
@@ -330,6 +329,45 @@ func TestExecContextDdl(t *testing.T) {
 			)	PRIMARY KEY (A)`,
 			wantError: true,
 		},
+		{
+			name: "drop table ok",
+			input: "DROP TABLE TestTable",
+		},
+		{
+			name: "drop non existent table",
+			input: "DROP TABLE NonExistent",
+			wantError: true,
+		},
+		// Build and fill table to test refferential integrity violation.
+		{
+			name: "ref ingegrity no cascade create parent table",
+			input: `CREATE TABLE ParentNoCascade (
+				id   INT64,
+			)	PRIMARY KEY (id)`,
+		},
+		{
+			name: "ref ingegrity no cascade create child table",
+			input: `CREATE TABLE ChildNoCascade (
+				id   INT64,
+				parent_id	INT64,
+				CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES ParentNoCascade (id)
+			)	PRIMARY KEY (id)`,
+		},
+		{
+			name: "ref ingegrity no cascade fill parent table",
+			input: `INSERT INTO  ParentNoCascade (id) VALUES (1), (2), (3)`,
+		},
+		{
+			name: "ref ingegrity no cascade fill child table",
+			input: `INSERT INTO  ChildNoCascade (id, parent_id) VALUES (2, 1), (4, 2), (6, 3)`,
+		},
+		// Drop table refferential integrity violation
+		{
+			name: "drop table referential integrity violation no cascade",
+			input: "DROP TABLE ParentNoCascade ",
+			wantError: true,
+		},
+		
 	}
 
 	// Run tests.
@@ -345,7 +383,7 @@ func TestExecContextDdl(t *testing.T) {
 
 	// Remove any stray tables.
 	for _, tc := range tests {
-		if !tc.wantError {
+		if tc.drop != "" {
 			_, err = db.ExecContext(ctx, tc.drop)
 			if err != nil {
 				t.Error(err)
@@ -353,9 +391,11 @@ func TestExecContextDdl(t *testing.T) {
 		}
 	}
 
+	
+
 }
 
-
+/*
 func TestExecContextDml(t *testing.T) {
 
 	// Open db.
@@ -384,13 +424,11 @@ func TestExecContextDml(t *testing.T) {
 
 
 	// Insert.
-	num, errr := db.ExecContext(ctx, `INSERT INTO TestDml (A, B) 
+	num, errr := db.ExecContext(ctx, `INSERT INTO TestDml (A, B)
 	VALUES ("a1", "b1"),("a12, "b2") `)
 	if errr != nil {
 		t.Fatal(err)
 	}
-
-	
 
 	fmt.Printf("\n\nNim: %+v\n", num)
 	fmt.Println("XXXXXXXXXXXXXXXXXXX")
@@ -398,6 +436,6 @@ func TestExecContextDml(t *testing.T) {
 
 	t.Fatal(num)
 
-
-
 }
+
+*/
