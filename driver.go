@@ -85,16 +85,16 @@ func openDriverConn(ctx context.Context, d *Driver, name string) (driver.Conn, e
 		return nil, err
 	}
 
-	adminClient, err := CreateAdminClient(ctx)
+	adminClient, err := createAdminClient(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return &conn{client: client, adminClient: adminClient, name: name}, nil
 }
 
-func CreateAdminClient(ctx context.Context) (*adminapi.DatabaseAdminClient, error) {
+func createAdminClient(ctx context.Context) (adminClient *adminapi.DatabaseAdminClient, err error) {
 
-	var adminClient *adminapi.DatabaseAdminClient
-	var err error
-
-	// Admin client will connect tp emulator if SPANNER_EMULATOR_HOST
+	// Admin client will connect to emulator if SPANNER_EMULATOR_HOST
 	// is set in the environment.
 	if spannerHost, ok := os.LookupEnv("SPANNER_EMULATOR_HOST"); ok {
 		adminClient, err = adminapi.NewDatabaseAdminClient(
@@ -103,16 +103,15 @@ func CreateAdminClient(ctx context.Context) (*adminapi.DatabaseAdminClient, erro
 			option.WithEndpoint(spannerHost),
 			option.WithGRPCDialOption(grpc.WithInsecure()))
 		if err != nil {
-			return nil, err
+			adminClient = nil
 		}
 	} else {
 		adminClient, err = adminapi.NewDatabaseAdminClient(ctx)
 		if err != nil {
-			return nil, err
+			adminClient = nil
 		}
 	}
-
-	return adminClient, nil
+	return
 }
 
 func (c *connector) Driver() driver.Driver {
@@ -143,12 +142,12 @@ func (c *conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 
 	// Use admin API if DDL statement is provided.
-	ddl, err := IsDdlStatement(query)
+	isDdl, err := isDdl(query)
 	if err != nil {
 		return nil, err
 	}
 
-	if ddl {
+	if isDdl {
 		op, err := c.adminClient.UpdateDatabaseDdl(ctx, &adminpb.UpdateDatabaseDdlRequest{
 			Database:   c.name,
 			Statements: []string{query},
@@ -182,7 +181,7 @@ func (c *conn) ExecContext(ctx context.Context, query string, args []driver.Name
 	return &result{rowsAffected: rowsAffected}, nil
 }
 
-func IsDdlStatement(query string) (bool, error) {
+func isDdl(query string) (bool, error) {
 
 	matchddl, err := regexp.MatchString(`(?is)^\n*\s*(CREATE|DROP|ALTER)\s+.+$`, query)
 	if err != nil {
