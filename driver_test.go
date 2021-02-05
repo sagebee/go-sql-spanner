@@ -243,8 +243,6 @@ func TestIsDdl(t *testing.T) {
 		{
 			name: "leading newlines",
 			input: `
-
-
 			CREATE TABLE Valid (
 				A   STRING(1024)
 			)	 PRIMARY KEY (A)`,
@@ -428,7 +426,8 @@ func TestExecContextDdl(t *testing.T) {
 			input: "DROP TABLE NonExistent",
 			wantError: true,
 		},
-		// Build and fill table to test refferential integrity violation.
+		// Build and fill table to test refferential integrity.
+		// No cascade, foreign key.
 		{
 			name: "ref ingegrity no cascade create parent table",
 			input: `CREATE TABLE ParentNoCascade (
@@ -440,24 +439,70 @@ func TestExecContextDdl(t *testing.T) {
 			input: `CREATE TABLE ChildNoCascade (
 				id   INT64,
 				parent_id	INT64,
-				CONSTRAINT fk FOREIGN KEY (parent_id) REFERENCES ParentNoCascade (id)
+				CONSTRAINT fk_nc FOREIGN KEY (parent_id) REFERENCES ParentNoCascade (id)
 			)	PRIMARY KEY (id)`,
 		},
 		{
 			name: "ref ingegrity no cascade fill parent table",
-			input: `INSERT INTO  ParentNoCascade (id) VALUES (1), (2), (3)`,
+			input: `INSERT INTO  ParentNoCascade (id) VALUES (1), (2)`,
 		},
 		{
 			name: "ref ingegrity no cascade fill child table",
-			input: `INSERT INTO  ChildNoCascade (id, parent_id) VALUES (2, 1), (4, 2), (6, 3)`,
+			input: `INSERT INTO  ChildNoCascade (id, parent_id) VALUES (2, 1), (4, 2)`,
 		},
-		// Drop table refferential integrity violation
+		// Cascade, interleave.
+		{
+			name: "ref ingegrity no cascade create parent table",
+			input: `CREATE TABLE ParentCascade (
+				parent_id   INT64,
+			)	PRIMARY KEY (parent_id)`,
+		},
+		{
+			name: "ref ingegrity no cascade create child table",
+			input: `CREATE TABLE ChildCascade (
+				parent_id	INT64,
+				id   INT64,
+			)	PRIMARY KEY (parent_id, id), 
+			INTERLEAVE IN PARENT ParentCascade ON DELETE CASCADE`,
+		},
+		{
+			name: "ref ingegrity no cascade fill parent table",
+			input: `INSERT INTO  ParentCascade (parent_id) VALUES (1), (2)`,
+		},
+		{
+			name: "ref ingegrity no cascade fill child table",
+			input: `INSERT INTO  ChildCascade (id, parent_id) VALUES (2, 1), (4, 2)`,
+		},
+		// Tests for referential integrity. 
 		{
 			name: "drop table referential integrity violation no cascade",
-			input: "DROP TABLE ParentNoCascade ",
+			input: "DROP TABLE ParentNoCascade",
 			wantError: true,
 		},
-		
+		{
+			name: "drop table referential integrity violation cascade",
+			input: "DROP TABLE ParentCascade",
+			wantError: true,
+		},
+		// Clean up referential integrity tables in the correct order. 
+		// No cascade.
+		{
+			name: "ref integrity clean up ChildNoCascade",
+			input: "DROP TABLE ChildNoCascade",
+		},
+		{
+			name: "ref integrity clean up ParentNoCascade",
+			input: "DROP TABLE ParentNoCascade",
+		},
+		// Cascade
+		{
+			name: "ref integrity clean up ChildCascade",
+			input: "DROP TABLE ChildCascade",
+		},
+		{
+			name: "ref integrity clean up ParentCascade",
+			input: "DROP TABLE ParentCascade",
+		},
 	}
 
 	// Run tests.
@@ -483,48 +528,8 @@ func TestExecContextDdl(t *testing.T) {
 }
 
 
-/*
-func TestExecContextDml(t *testing.T) {
-
-	// Open db.
-	ctx := context.Background()
-	db, err := sql.Open("spanner", dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-
-	// Set up test table.
-	conn, err := NewConnector()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-
-	_, err = db.ExecContext(ctx,
-		`CREATE TABLE TestDml (
-			A   STRING(1024),
-			B  STRING(1024),
-		)	 PRIMARY KEY (A)`)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestExecContextDdlReferential(t *testing.T) {
 
 
-	// Insert.
-	num, errr := db.ExecContext(ctx, `INSERT INTO TestDml (A, B)
-	VALUES ("a1", "b1"),("a12, "b2") `)
-	if errr != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Printf("\n\nNim: %+v\n", num)
-	fmt.Println("XXXXXXXXXXXXXXXXXXX")
-	fmt.Println(num.RowsAffected())
-
-	t.Fatal(num)
 
 }
-
-*/
-
