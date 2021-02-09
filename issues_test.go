@@ -49,7 +49,8 @@ func TestNullScan(t *testing.T) {
 	_, err = db.ExecContext(ctx, 
 		`INSERT INTO  TestNullScan
 		(key, testString, testBytes, testInt, testFloat, testBool)
-		VALUES ('nullstring', null, CAST("nullstring" as bytes), 42, 42, true )`,
+		VALUES ('nullstring', null, CAST("nullstring" as bytes), 42, 42, true ),
+		('nullbytes', "nullbytes", null, 42, 42, true )`,
 	) 
 	if err != nil {
 		t.Fatal(err)
@@ -77,8 +78,8 @@ func TestNullScan(t *testing.T) {
 			// Should possibly give scan error instead of filling w null string
 			name: "read null string",
 			input: `SELECT * FROM TestNullScan WHERE key = "nullstring"`,
-			want:           []testQueryContextRow{
-				{key: "nullstring", testString: "", testBytes: , testInt: , testFloat: , testBool: },
+			want:           []TestNullScanRow{
+				{key: "nullstring", testString: "", testBytes: []byte("nullstring") , testInt: 42 , testFloat: 42 , testBool: true },
 			},
 
 		},
