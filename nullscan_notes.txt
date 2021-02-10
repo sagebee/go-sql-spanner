@@ -1,0 +1,47 @@
+
+
+
+Reading null into normal values (not pointers or nullable ) :
+
+pg driver:
+    - string: sql: Scan error on column index 3, name "teststring": converting NULL to string is unsupported
+
+spanner lib:
+    - string: spanner: code = "InvalidArgument", desc = "failed to decode column 1, destination *string cannot support NULL SQL values"
+
+exit status 1
+
+
+
+Areas of interest ~
+
+~ go/sql
+- column function that fetches the value 
+
+cloud
+ - decode error from cloud/spanner
+    https://github.com/googleapis/google-cloud-go/blob/master/spanner/row.go#L175-#L185
+
+- decode function that I think should give err
+    https://github.com/googleapis/google-cloud-go/blob/master/spanner/value.go#L481-#L483
+
+- what the decode function calls
+    https://github.com/googleapis/google-cloud-go/blob/master/spanner/value.go#L569-#L1381
+
+
+- data struct that is used 
+    https://pkg.go.dev/cloud.google.com/go/spanner#NullString
+
+- Value type that's passed into rows.Next()
+    https://golang.org/pkg/database/sql/driver/#Value
+
+- Scan function from database/sql 
+    https://golang.org/src/database/sql/sql.go#L3113
+
+
+- the err we want to replicate is in cloud/spanner from the row.Columns func 
+    https://github.com/googleapis/google-cloud-go/blob/master/spanner/row.go#L249-L265
+- which calls this, which contains the decode error
+    https://github.com/googleapis/google-cloud-go/blob/master/spanner/row.go#L201-L215
+
+

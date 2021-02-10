@@ -24,6 +24,8 @@ import (
 	"cloud.google.com/go/spanner"
 	"google.golang.org/api/iterator"
 	sppb "google.golang.org/genproto/googleapis/spanner/v1"
+
+	"fmt"
 )
 
 type rows struct {
@@ -89,10 +91,13 @@ func (r *rows) Next(dest []driver.Value) error {
 	}
 
 	for i := 0; i < row.Size(); i++ {
+
 		var col spanner.GenericColumnValue
-		if err := row.Column(i, &col); err != nil {
-			return err
+		// Fetches value from ith column & decodes into col (spanner.Generic Column Value)
+		if err := row.Column(i, &col); err != nil { // error could come from here? xxx
+			return err 
 		}
+		fmt.Println(col.Type.Code)
 		switch col.Type.Code {
 		case sppb.TypeCode_INT64:
 			var v spanner.NullInt64
@@ -102,16 +107,21 @@ func (r *rows) Next(dest []driver.Value) error {
 			dest[i] = v.Int64
 		case sppb.TypeCode_FLOAT64:
 			var v spanner.NullFloat64
-			if err := col.Decode(&v); err != nil {
+			if err := col.Decode(&v); err != nil { 
 				return err
 			}
 			dest[i] = v.Float64
-		case sppb.TypeCode_STRING:
-			var v spanner.NullString
-			if err := col.Decode(&v); err != nil {
+		case sppb.TypeCode_STRING: // xxx
+			var v spanner.NullString // I think this needs some info about what's being sent in??
+			if err := col.Decode(&v); err != nil { // xxx this should give a decode err?
+				fmt.Println("DECOFE ERRRREDKFEJKTH")
 				return err
 			}
-			dest[i] = v.StringVal
+			if v.IsNull(){ // xxx
+				fmt.Printf("V IS NULL")
+			}
+			dest[i] = v.StringVal  // if the string is null only the null is captured
+			fmt.Println("")
 		case sppb.TypeCode_BYTES:
 			// The column value is a base64 encoded string.
 			var v []byte
